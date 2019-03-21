@@ -52,7 +52,7 @@ class ReconcileEngine():
     def seperate_word(self, df, column_name):
         """Create new Dataframe Column with separate word"""
         word_sep = []
-        for index, row in df.iterrows():
+        for row in df.iterrows():
             word_sep.append([x.lower() for x in list(row[column_name])])
             df[str(column_name)+'_sep'] = pd.Series(word_sep)
         return str(column_name)+'_sep'
@@ -90,7 +90,6 @@ class ReconcileEngine():
         return isAssign
 
     def matching(self, ledgerDF, bankDF, ledgerCol, bankCol):
-        # print("Doing name item check....")
         series = ledgerDF[ledgerCol]
         series2 = bankDF[bankCol]
         for row2 in series2.iteritems():
@@ -102,16 +101,10 @@ class ReconcileEngine():
                     best_score = cur_score
                     best_row = row
             self.associate(self.bankDF,row2[0],best_row[0])
-            # print("BEST ARE ", row2[0],''.join(row2[1]) ," BY ", best_row[0],''.join(best_row[1])," SCORE= ",best_score)
     
     def check_number(self, ledgerDF, bankDF, errAmount, errDay):
         for indexBank, rowBank in bankDF.iterrows():
             for indexLedger, rowLedger in ledgerDF.iterrows():
-                # boolDate = rowBank['Date'].date() == rowLedger['Date'].date()
-                # rowDeposit = float(str(rowBank['Deposit']).replace(',',''))
-                # rowDebit = float(str(rowLedger['Debit']).replace(',',''))
-                # rowWithdrawals = float(str(rowBank['Withdraw']).replace(',',''))
-                # rowCredit = float(str(rowLedger['Credit']).replace(',',''))
 
                 boolDate = rowBank['Date'].date() == rowLedger['Date'].date()
                 rowDeposit = rowBank['Deposit']
@@ -143,17 +136,10 @@ class ReconcileEngine():
                     margin = timedelta(days = errDay)
                     boolDate = bankDate - margin <=  ledgerDate <= bankDate + margin
 
-                # print(boolDate , rowBank['Date'].date(), rowLedger['Date'].date())
-                # print(boolMoneyIn, rowDeposit , rowDebit)
-                # print(boolMoneyOut, rowWithdrawals, rowCredit)
-
                 if (boolDate and boolMoneyIn  and boolMoneyOut):
-                    # print("compare by date, money.. "+ str(indexBank) \
-                    #     +" equal to " + str(indexLedger))
                     isAssign = self.associate(self.bankDF,indexBank,indexLedger)
                     if isAssign: break
                     else: continue
-                # else:print("not match")
 
 if __name__ == "__main__":
     pass
