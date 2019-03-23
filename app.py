@@ -31,10 +31,12 @@ class MainClass(Resource):
 	
 	def post(self):
 		try:
+			# get files from client 
 			file_book = request.form['file_book']
 			file_bank = request.form['file_bank']
 			range_date, range_amount = request.form.getlist('ranges[]')
 
+			# parse string (csv) to dataframe
 			file_bookDf = csv_to_df(file_book)
 			file_bankDf = csv_to_df(file_bank)
 
@@ -85,7 +87,6 @@ class MainClass(Resource):
 
 		except Exception as e:
 			matching.abort(400, e.__doc__, status = "Incorrect or corrupted", statusCode = "400")
-
 
 if __name__ == '__main__':
     flask_app.run(debug=True, port=5000)
