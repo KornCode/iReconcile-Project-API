@@ -9,20 +9,11 @@ import numpy as np
 import sys, os, time, json
 
 from engine import ReconcileEngine
-
-if sys.version_info[0] < 3: 
-    from StringIO import StringIO
-else:
-    from io import StringIO
-
+from functions import csv_to_df
+from config import mail_settings
 
 flask_app = Flask(__name__)
-flask_app.config['MAIL_SERVER']='smtp.mailtrap.io'
-flask_app.config['MAIL_PORT'] = 2525
-flask_app.config['MAIL_USERNAME'] = '609e967353499a'
-flask_app.config['MAIL_PASSWORD'] = '3e11df6e3f31d2'
-flask_app.config['MAIL_USE_TLS'] = True
-flask_app.config['MAIL_USE_SSL'] = False
+flask_app.config.update(mail_settings)
 mail = Mail(flask_app)
 CORS(flask_app)
 
@@ -30,7 +21,6 @@ app = Api(app = flask_app,
 		  version = "1.0.2", 
 		  title = "Reconcile APIs", 
 		  description = "Find matching items statement.")
-
 
 matching = app.namespace('main', description='Find matching')
 
@@ -45,12 +35,10 @@ class MainClass(Resource):
 			file_bank = request.form['file_bank']
 			range_date, range_amount = request.form.getlist('ranges[]')
 
-			file_bookSTR = StringIO(file_book)
-			file_bookPD = pd.read_csv(file_bookSTR, sep=',')
-			file_bankSTR = StringIO(file_bank)
-			file_bankPD = pd.read_csv(file_bankSTR, sep=',')
+			file_bookDf = csv_to_df(file_book)
+			file_bankDf = csv_to_df(file_bank)
 
-			result = ReconcileEngine(file_bankPD, file_bookPD, True, True, float(range_amount), int(range_date))
+			result = ReconcileEngine(file_bookDf, file_bankDf, float(range_amount), int(range_date))
 			associated = result.bankDF.associate
 			resultJson = associated.to_json(orient="index")
 
