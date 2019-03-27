@@ -40,8 +40,8 @@ class MainClass(Resource):
 			file_bookDf = csv_to_df(file_book)
 			file_bankDf = csv_to_df(file_bank)
 
-			result = ReconcileEngine(file_bookDf, file_bankDf, float(range_amount), int(range_date))
-			associated = result.bankDF.associate
+			result_fields = ReconcileEngine(file_bookDf, file_bankDf, float(range_amount), int(range_date))
+			associated = result_fields.bankDF.associate
 			resultJson = associated.to_json(orient="index")
 
 			print(json.dumps(json.loads(resultJson), indent=4, sort_keys=True))
@@ -72,7 +72,6 @@ class MainClass(Resource):
 			category = contact_form["category"]
 			comment = contact_form["comment"]
 
-
 			msg = Message("User Contact - " + category,
                   sender=email,
                   recipients=["to@example.com"])
@@ -80,7 +79,6 @@ class MainClass(Resource):
 			mail.send(msg)
 
 			return 200
-
 
 		except KeyError as e:
 			matching.abort(500, e.__doc__, status = "Could not perform reconciliation", statusCode = "500")

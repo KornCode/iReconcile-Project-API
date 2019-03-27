@@ -19,29 +19,20 @@ class ReconcileEngine():
         self.bankDF['Desc'] = self.bankDF['Desc'].astype(str)
         self.ledgerDF['Desc'] = self.ledgerDF['Desc'].astype(str)
 
-        #Should have something automatic detect Description or Item
+        # Should have something automatic detect Description or Item
         bankColName = self.seperate_word(self.bankDF, "Desc")
         ledgerColName = self.seperate_word(self.ledgerDF, "Desc")
 
-        #Has to specific Name that contain NSF Problem
-        (self.bankDF, self.onlyNSF) = self.remove_nsf(self.bankDF, "Desc")
-
-        # self.bankDF = self.bankDF.reset_index()
         self.ledgerDF = self.ledgerDF.reset_index()
 
         self.check_number(self.ledgerDF, self.bankDF, errAmount, errDay)
         self.matching(self.ledgerDF, self.bankDF, ledgerColName, bankColName)
-        
-        # get NSF cheque row back & correct index
-        __list = [self.bankDF, self.onlyNSF]
-        self.bankDF = pd.concat(__list)
-        self.bankDF = self.bankDF.reset_index()
 
     def seperate_word(self, df, column_name):
         """Create new Dataframe Column with separate word"""
         word_sep = []
-        for _, row in df.iterrows():
-            word_sep.append([x.lower() for x in list(row[column_name])])
+        for index in df.index:
+            word_sep.append([x.lower() for x in list(df.loc[index, column_name])])
             df[str(column_name)+'_sep'] = pd.Series(word_sep)
         return str(column_name)+'_sep'
     
@@ -52,14 +43,9 @@ class ReconcileEngine():
         set2 = set(list_word2)
         for x in set1:
             for y in set2:
-                if(x==y):
-                    score = score + 1
+                if (x == y):
+                    score += 1
         return score
-
-    def remove_nsf(self, df, colname):
-        _df = df[~df[colname].str.contains("NSF")]
-        __df = df[df[colname].str.contains("NSF")]
-        return _df,__df
 
     def associate(self, df, o, d):
         """associate, a = origin_index, b = destination_index"""
@@ -89,15 +75,15 @@ class ReconcileEngine():
                     best_score = cur_score
                     best_row = row
             self.associate(self.bankDF, row2[0], best_row[0])
-    
+
     def check_number(self, ledgerDF, bankDF, errAmount, errDay):
-        for indexBank, rowBank in bankDF.iterrows():
-            for indexLedger, rowLedger in ledgerDF.iterrows():
-                boolDate = rowBank['Date'].date() == rowLedger['Date'].date()
-                rowDeposit = rowBank['Deposit']
-                rowDebit = rowLedger['Debit']
-                rowWithdrawals = rowBank['Withdraw']
-                rowCredit = rowLedger['Credit']
+        for i in bankDF.index:
+            for j in ledgerDF.index:
+                boolDate = bankDF.loc[i, 'Date'].date() == ledgerDF.loc[j, 'Date'].date()
+                rowDeposit = bankDF.loc[i, 'Deposit']
+                rowDebit = ledgerDF.loc[j, 'Debit']
+                rowWithdrawals = bankDF.loc[i, 'Withdraw']
+                rowCredit = ledgerDF.loc[j, 'Credit']
 
                 if (isnull(rowDeposit) & isnull(rowDebit)):
                     boolMoneyIn = True
@@ -118,13 +104,13 @@ class ReconcileEngine():
                     boolMoneyOut = False
 
                 if (errDay > 0 & (not boolDate)):
-                    bankDate = rowBank['Date'].date()
-                    ledgerDate = rowLedger['Date'].date()
+                    bankDate = bankDF.loc[i, 'Date'].date()
+                    ledgerDate = ledgerDF.loc[j, 'Date'].date()
                     margin = timedelta(days = errDay)
                     boolDate = bankDate - margin <=  ledgerDate <= bankDate + margin
 
-                if (boolDate and boolMoneyIn  and boolMoneyOut):
-                    isAssign = self.associate(self.bankDF, indexBank, indexLedger)
+                if (boolDate and boolMoneyIn and boolMoneyOut):
+                    isAssign = self.associate(self.bankDF, i, j)
                     if isAssign: 
                         break
                     else: 
