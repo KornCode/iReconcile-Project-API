@@ -1,5 +1,5 @@
 # iReconcile-Project-API
-Set uo
+Set up
 1. Install Python 3.
 2. Download server side source code from https://github.com/KornCode/iReconcile-Project-API.git.
 3. Install pip and virtual environment.
