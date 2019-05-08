@@ -1,10 +1,13 @@
 import pandas as pd
 import numpy as np
+import warnings
 from pandas import isnull
 from datetime import date, timedelta
+warnings.filterwarnings('ignore')
 
 class ReconcileEngine():
     def __init__(self, listLedgerDF, listBankDF, errAmount = 0, errDay = 0):
+
         self.bankDF = listBankDF
         self.ledgerDF = listLedgerDF
         self.solution = {}
@@ -31,8 +34,8 @@ class ReconcileEngine():
     def seperate_word(self, df, column_name):
         """Create new Dataframe Column with separate word"""
         word_sep = []
-        for index in df.index:
-            word_sep.append([x.lower() for x in list(df.loc[index, column_name])])
+        for index, row in df.iterrows():
+            word_sep.append([x.lower() for x in list(row[column_name])])
             df[str(column_name)+'_sep'] = pd.Series(word_sep)
         return str(column_name)+'_sep'
     
@@ -43,15 +46,14 @@ class ReconcileEngine():
         set2 = set(list_word2)
         for x in set1:
             for y in set2:
-                if (x == y):
-                    score += 1
+                if(x==y):
+                    score = score + 1
         return score
 
     def associate(self, df, o, d):
         """associate, a = origin_index, b = destination_index"""
-        isAssign = False
-
         # Check if that original already has value?
+        isAssign = False
         if (not (isnull(df['associate'][o]))):
             pass
         # Check If destination index already used or not?
@@ -60,7 +62,6 @@ class ReconcileEngine():
         else:
             df['associate'][o] = int(d)
             isAssign = True
-
         return isAssign
 
     def matching(self, ledgerDF, bankDF, ledgerCol, bankCol):
@@ -70,51 +71,48 @@ class ReconcileEngine():
             best_score = 0
             cur_score = 0
             for row in series.iteritems():
-                cur_score = self.compare_list(row2[1], row[1])
+                cur_score = self.compare_list(row2[1],row[1])
                 if cur_score > best_score :
                     best_score = cur_score
                     best_row = row
-            self.associate(self.bankDF, row2[0], best_row[0])
-
+            if(best_score > 5):self.associate(self.bankDF,row2[0],best_row[0])
+    
     def check_number(self, ledgerDF, bankDF, errAmount, errDay):
-        for i in bankDF.index:
-            for j in ledgerDF.index:
-                boolDate = bankDF.loc[i, 'Date'].date() == ledgerDF.loc[j, 'Date'].date()
-                rowDeposit = bankDF.loc[i, 'Deposit']
-                rowDebit = ledgerDF.loc[j, 'Debit']
-                rowWithdrawals = bankDF.loc[i, 'Withdraw']
-                rowCredit = ledgerDF.loc[j, 'Credit']
+        for indexBank, rowBank in bankDF.iterrows():
+            for indexLedger, rowLedger in ledgerDF.iterrows():
+                boolDate = rowBank['Date'].date() == rowLedger['Date'].date()
+                rowDeposit = float(str(rowBank['Deposit']).replace(',',''))
+                rowDebit = float(str(rowLedger['Debit']).replace(',',''))
+                rowWithdrawal = float(str(rowBank['Withdraw']).replace(',',''))
+                rowCredit = float(str(rowLedger['Credit']).replace(',',''))
 
-                if (isnull(rowDeposit) & isnull(rowDebit)):
+                if(isnull(rowDeposit) & isnull(rowDebit)):
                     boolMoneyIn = True
-                elif (rowDeposit == rowDebit):
+                elif( rowDeposit == rowDebit ):
                     boolMoneyIn = True
-                elif (rowDeposit - errAmount <= rowDebit <= rowDeposit + errAmount):
+                elif( rowDeposit - errAmount <= rowDebit <= rowDeposit + errAmount):
                     boolMoneyIn = True
-                else: 
-                    boolMoneyIn = False
+                else : boolMoneyIn = False
 
-                if (isnull(rowWithdrawals) & isnull(rowCredit)):
+                if( isnull(rowWithdrawal) & isnull(rowCredit) ):
                     boolMoneyOut = True
-                elif (rowWithdrawals == rowCredit):
+                elif( rowWithdrawal == rowCredit ):
                     boolMoneyOut = True
-                elif (rowWithdrawals - errAmount <= rowCredit <=  rowWithdrawals + errAmount):
+                elif( rowWithdrawal - errAmount <= rowCredit <=  rowWithdrawal + errAmount ):
                     boolMoneyOut = True
-                else: 
-                    boolMoneyOut = False
+                else : boolMoneyOut = False
 
-                if (errDay > 0 & (not boolDate)):
-                    bankDate = bankDF.loc[i, 'Date'].date()
-                    ledgerDate = ledgerDF.loc[j, 'Date'].date()
+                if(errDay > 0 & (not boolDate)):
+                    bankDate = rowBank['Date'].date()
+                    ledgerDate = rowLedger['Date'].date()
                     margin = timedelta(days = errDay)
                     boolDate = bankDate - margin <=  ledgerDate <= bankDate + margin
 
-                if (boolDate and boolMoneyIn and boolMoneyOut):
-                    isAssign = self.associate(self.bankDF, i, j)
-                    if isAssign: 
-                        break
-                    else: 
-                        continue
+                if( boolDate and boolMoneyIn  and boolMoneyOut ):
+                    isAssign = self.associate(self.bankDF,indexBank,indexLedger)
+                    if isAssign : break
+                    else : continue
 
 if __name__ == "__main__":
     pass
+    

@@ -9,7 +9,8 @@ import numpy as np
 import sys, os, time, json
 
 from engine import ReconcileEngine
-from functions import csv_to_df
+from grouping import FindGroupSum
+from functions import csv_to_df, remaining_to_values
 from config import mail_settings
 
 flask_app = Flask(__name__)
@@ -34,19 +35,51 @@ class MainClass(Resource):
 			# get files from client 
 			file_book = request.form['file_book']
 			file_bank = request.form['file_bank']
-			range_date, range_amount = request.form.getlist('ranges[]')
+			date_range = request.form['date_range']
 
 			# parse string (csv) to dataframe
 			file_bookDf = csv_to_df(file_book)
 			file_bankDf = csv_to_df(file_bank)
 
-			result_fields = ReconcileEngine(file_bookDf, file_bankDf, float(range_amount), int(range_date))
+			print(file_book)
+			print(file_bank)
+
+			result_fields = ReconcileEngine(file_bookDf, file_bankDf, 0, int(date_range))
 			associated = result_fields.bankDF.associate
+
+			remainingLedger, remainingBank = remaining_to_values(file_bookDf, file_bankDf, associated)
+
+			result_group = FindGroupSum(remainingBank, remainingLedger)
+			resultGroup = pd.DataFrame(result_group.resultGroup).to_json(orient="index")
+			unmatchedLedger = result_group.unableLedger
+			unmatchedBank = result_group.unableBank
+
+			print(associated)
+			# check
+
+			IndexToRemove = []
+			for obj in result_group.resultGroup:
+				IndexToRemove += obj['bank']
+				for index in obj['ledger']:
+					# get key of index in Series
+					try:
+						IndexToRemove.append(associated[associated == index].index[0])
+					except:
+						pass
+					
+			print(IndexToRemove)
+			print(associated.drop(labels=IndexToRemove, inplace=True))
+
+			# associated.drop(labels=IndexToRemove, inplace=True)
+			associated.dropna(inplace=True)
+
+			print(associated)
+
 			resultJson = associated.to_json(orient="index")
 
-			print(json.dumps(json.loads(resultJson), indent=4, sort_keys=True))
+			# print(json.dumps(json.loads(resultJson), indent=4, sort_keys=True))
 
-			return resultJson
+			return [resultJson, resultGroup, unmatchedLedger, unmatchedBank]
 
 		except KeyError as e:
 			matching.abort(500, e.__doc__, status = "Could not perform reconciliation", statusCode = "500")
